@@ -2,6 +2,7 @@ package com.example.backend.security;
 
 import com.example.backend.model.User;
 import com.example.backend.repository.UserRepository;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
@@ -49,15 +50,49 @@ public class JwtService {
 
 
     public String extractUsername(String token) {
+        try {
+            return extractClaim(token, Claims::getSubject);
+        } catch (Exception e) {
+            System.err.println("Error extracting username from token: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public Date extractExpiration(String token) {
+        return extractClaim(token, Claims::getExpiration);
+    }
+
+    public <T> T extractClaim(String token, java.util.function.Function<Claims, T> claimsResolver) {
+        final Claims claims = extractAllClaims(token);
+        return claimsResolver.apply(claims);
+    }
+
+    private Claims extractAllClaims(String token) {
         return Jwts.parser()
                 .setSigningKey(key)
-                .build() // ✅ build first
+                .build()
                 .parseClaimsJws(token)
-                .getBody()
-                .getSubject();
+                .getBody();
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
-        return extractUsername(token).equals(userDetails.getUsername());
+        try {
+            final String username = extractUsername(token);
+            return username != null && 
+                   username.equals(userDetails.getUsername()) && 
+                   !isTokenExpired(token);
+        } catch (Exception e) {
+            System.err.println("Token validation failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean isTokenExpired(String token) {
+        try {
+            return extractExpiration(token).before(new Date());
+        } catch (Exception e) {
+            System.err.println("Error checking token expiration: " + e.getMessage());
+            return true; // If we can't parse, consider it expired
+        }
     }
 }

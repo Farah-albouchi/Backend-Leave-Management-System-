@@ -33,26 +33,36 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         final String authHeader = request.getHeader("Authorization");
+        System.out.println("🔍 JWT Filter Debug - Path: " + path + ", Has Auth Header: " + (authHeader != null));
+        
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            System.out.println("❌ No valid Authorization header found");
             filterChain.doFilter(request, response);
             return;
         }
 
         final String token = authHeader.substring(7);
         final String email = jwtService.extractUsername(token);
+        System.out.println("🔍 Extracted email from token: " + email);
 
         if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
-            if (jwtService.isTokenValid(token, userDetails)) {
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+            try {
+                UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+                if (jwtService.isTokenValid(token, userDetails)) {
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                            userDetails, null, userDetails.getAuthorities());
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                    System.out.println("✅ JWT authentication successful for: " + email);
+                } else {
+                    System.out.println("❌ JWT token validation failed for: " + email);
+                }
+            } catch (Exception e) {
+                System.err.println("❌ Error during JWT authentication: " + e.getMessage());
             }
         }
 
         filterChain.doFilter(request, response);
-        System.out.println("JWT Filter path = " + request.getServletPath());
 
     }
 
