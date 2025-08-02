@@ -1,0 +1,29 @@
+package com.example.backend.repository;
+
+import com.example.backend.model.LeaveRequest;
+import com.example.backend.model.LeaveStatus;
+import com.example.backend.model.User;
+import jakarta.transaction.Transactional;
+import org.hibernate.tool.schema.spi.SchemaTruncator;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.UUID;
+
+@Repository
+public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, UUID> {
+    List<LeaveRequest> findByStatus(LeaveStatus status);
+    List<LeaveRequest> findByStatusAndEmployeeId(LeaveStatus status, String employeeId);
+    List<LeaveRequest> findByEmployeeId(String employeeId);
+    @Query("SELECT TO_CHAR(r.startDate, 'Month YYYY'), COUNT(r) " +
+            "FROM LeaveRequest r " +
+            "GROUP BY TO_CHAR(r.startDate, 'Month YYYY') " +
+            "ORDER BY MIN(r.startDate)")
+    List<Object[]> countLeaveRequestsByMonth();
+
+    long countByStatus(LeaveStatus status);
+    @Transactional
+    void deleteAllByEmployee(User user);
+}
