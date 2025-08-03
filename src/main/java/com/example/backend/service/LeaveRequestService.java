@@ -18,6 +18,8 @@ public interface LeaveRequestService {
     LeaveRequest getMyRequestById(UUID requestId, String userId);
     void cancelRequest(UUID requestId,String userId);
     List<LeaveRequest> getAllRequests(LeaveStatus status, String employeeId);
+    
+    List<LeaveRequest> getEmployeeLeaveHistory(String employeeId);
     LeaveRequest getRequestById(UUID requestId);
     void updateStatus(UUID requestId, LeaveStatus status, String reason);
     List<MonthlyLeaveStat> getMonthlyStats();

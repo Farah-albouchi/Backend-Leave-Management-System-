@@ -107,6 +107,13 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
         }
         return leaveRequestRepository.findAll();
     }
+    
+    @Override
+    public List<LeaveRequest> getEmployeeLeaveHistory(String employeeId) {
+        User employee = userRepository.findById(employeeId)
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
+        return leaveRequestRepository.findByEmployee(employee);
+    }
 
     @Override
     public LeaveRequest getRequestById(UUID requestId) {

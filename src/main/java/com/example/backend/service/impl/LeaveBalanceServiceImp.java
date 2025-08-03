@@ -45,9 +45,19 @@ public class LeaveBalanceServiceImp {
         return leaveBalanceRepo.findByEmployee_Id(employee.getId());
     }
     
+    public LeaveBalanceSummaryDto getEmployeeLeaveBalance(String employeeId) {
+        User employee = userRepository.findById(employeeId)
+                .orElseThrow(() -> new NoSuchElementException("Employee not found"));
+        return getEmployeeBalanceSummaryByUser(employee);
+    }
+
     public LeaveBalanceSummaryDto getEmployeeBalanceSummary(String employeeEmail) {
         User employee = userRepository.findByEmail(employeeEmail)
                 .orElseThrow(() -> new NoSuchElementException("Employee not found"));
+        return getEmployeeBalanceSummaryByUser(employee);
+    }
+
+    private LeaveBalanceSummaryDto getEmployeeBalanceSummaryByUser(User employee) {
                 
         int currentYear = LocalDate.now().getYear();
         

@@ -1,10 +1,9 @@
 package com.example.backend.controller;
 
-import com.example.backend.dto.AdminLeaveRequestDto;
-import com.example.backend.dto.CreateEmployeeRequest;
-import com.example.backend.dto.LeaveRequestDto;
+import com.example.backend.dto.*;
 import com.example.backend.model.LeaveRequest;
 import com.example.backend.model.LeaveStatus;
+import com.example.backend.model.User;
 import com.example.backend.service.LeaveRequestService;
 import com.example.backend.service.UserService;
 import com.example.backend.service.impl.UserServiceImpl;
@@ -29,9 +28,97 @@ public class AdminController {
 
 
 
+    // ========== EMPLOYEE MANAGEMENT ENDPOINTS ==========
+    
+    @GetMapping("/employees")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<EmployeeDto>> getAllEmployees() {
+        List<User> employees = userService.getAllEmployees();
+        List<EmployeeDto> employeeDtos = employees.stream()
+                .map(EmployeeDto::fromEntity)
+                .toList();
+        return ResponseEntity.ok(employeeDtos);
+    }
+
+    @GetMapping("/employees/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<EmployeeDto> getEmployeeById(@PathVariable String id) {
+        User employee = userService.getEmployeeById(id);
+        EmployeeDto employeeDto = EmployeeDto.fromEntity(employee);
+        return ResponseEntity.ok(employeeDto);
+    }
+
+    @PostMapping("/employees")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, String>> createEmployee(@RequestBody CreateEmployeeRequest request) {
+        User createdEmployee = userService.createEmployee(request);
+        
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Employee created successfully");
+        response.put("employeeId", createdEmployee.getId());
+        response.put("email", createdEmployee.getEmail());
+        
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/employees/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, String>> updateEmployee(@PathVariable String id, @RequestBody UpdateEmployeeRequest request) {
+        User updatedEmployee = userService.updateEmployee(id, request);
+        
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Employee updated successfully");
+        response.put("employeeId", updatedEmployee.getId());
+        
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/employees/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, String>> deleteEmployee(@PathVariable String id) {
+        userService.deleteUser(id);
+        
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Employee deleted successfully");
+        
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/employees/{id}/leave-history")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<AdminLeaveRequestDto>> getEmployeeLeaveHistory(@PathVariable String id) {
+        List<LeaveRequest> requests = leaveRequestService.getEmployeeLeaveHistory(id);
+        List<AdminLeaveRequestDto> dtos = requests.stream()
+                .map(AdminLeaveRequestDto::fromEntity)
+                .toList();
+        return ResponseEntity.ok(dtos);
+    }
+
+    @PostMapping("/employees/{id}/reset-password")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, String>> resetEmployeePassword(@PathVariable String id) {
+        String newPassword = userService.resetEmployeePassword(id);
+        
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Password reset successfully");
+        response.put("newPassword", newPassword);
+        
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/employees/stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> getEmployeeStats() {
+        Map<String, Object> stats = userService.getEmployeeStats();
+        return ResponseEntity.ok(stats);
+    }
+
+    // ========== LEGACY ENDPOINT (for backward compatibility) ==========
+    
     @PostMapping("/create-employee")
-    @PreAuthorize("hasRole('ADMIN')") // ✅ only Admin
-    public ResponseEntity<String> createEmployee(@RequestBody CreateEmployeeRequest request) {
+    @PreAuthorize("hasRole('ADMIN')")
+    @Deprecated
+    public ResponseEntity<String> createEmployeeLegacy(@RequestBody CreateEmployeeRequest request) {
         userService.createEmployee(request);
         return ResponseEntity.ok("Employee created and email sent.");
     }

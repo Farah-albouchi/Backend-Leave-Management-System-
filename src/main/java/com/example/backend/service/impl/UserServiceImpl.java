@@ -2,10 +2,10 @@ package com.example.backend.service.impl;
 
 
 import ch.qos.logback.classic.encoder.JsonEncoder;
-import com.example.backend.dto.CompleteProfileRequest;
-import com.example.backend.dto.CreateEmployeeRequest;
-import com.example.backend.dto.RegisterRequest;
-import com.example.backend.dto.UserDto;
+import com.example.backend.dto.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import com.example.backend.model.LeaveBalance;
 import com.example.backend.model.LeaveType;
 import com.example.backend.model.Role;
@@ -60,20 +60,22 @@ public class UserServiceImpl implements UserService {
         );
 
     }
-    public void createEmployee(CreateEmployeeRequest request) {
-
+    public User createEmployee(CreateEmployeeRequest request) {
+        // Generate random password
         String rawPassword = UUID.randomUUID().toString().substring(0, 8);
-
-
         String encodedPassword = passwordEncoder.encode(rawPassword);
 
-
+        // Build user with provided or default role
         User employee = User.builder()
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .email(request.getEmail())
+                .phone(request.getPhone())
+                .address(request.getAddress())
+                .cin(request.getCin())
                 .password(encodedPassword)
-                .role(Role.EMPLOYEE)
+                .role(request.getRole() != null ? request.getRole() : Role.EMPLOYEE)
+                .profileCompleted(false)
                 .build();
 
         User savedEmployee = userRepository.save(employee);
@@ -97,12 +99,108 @@ public class UserServiceImpl implements UserService {
         }
 
 
+        // Send welcome email with temporary password
         emailService.sendEmail(
                 request.getEmail(),
                 "Your account has been created",
                 "Hello " + request.getFirstName() + " " + request.getLastName() +
-                        ",\n\nYour temporary password is: " + rawPassword
+                        ",\n\nYour temporary password is: " + rawPassword +
+                        "\n\nPlease log in and complete your profile."
         );
+        
+        return savedEmployee;
+    }
+
+    // ========== NEW EMPLOYEE MANAGEMENT METHODS ==========
+    
+    public List<User> getAllEmployees() {
+        return userRepository.findAll()
+                .stream()
+                .filter(user -> user.getRole() != null) // Filter out any invalid users
+                .toList();
+    }
+    
+    public User getEmployeeById(String id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
+    }
+    
+    public User updateEmployee(String id, UpdateEmployeeRequest request) {
+        User employee = getEmployeeById(id);
+        
+        // Update fields if provided
+        if (request.getFirstName() != null) {
+            employee.setFirstName(request.getFirstName());
+        }
+        if (request.getLastName() != null) {
+            employee.setLastName(request.getLastName());
+        }
+        if (request.getEmail() != null) {
+            employee.setEmail(request.getEmail());
+        }
+        if (request.getPhone() != null) {
+            employee.setPhone(request.getPhone());
+        }
+        if (request.getAddress() != null) {
+            employee.setAddress(request.getAddress());
+        }
+        if (request.getCin() != null) {
+            employee.setCin(request.getCin());
+        }
+        if (request.getRole() != null) {
+            employee.setRole(request.getRole());
+        }
+        
+        return userRepository.save(employee);
+    }
+    
+    public String resetEmployeePassword(String id) {
+        User employee = getEmployeeById(id);
+        
+        // Generate new random password
+        String newPassword = UUID.randomUUID().toString().substring(0, 8);
+        String encodedPassword = passwordEncoder.encode(newPassword);
+        
+        employee.setPassword(encodedPassword);
+        userRepository.save(employee);
+        
+        // Send email with new password
+        emailService.sendEmail(
+                employee.getEmail(),
+                "Password Reset",
+                "Hello " + employee.getFirstName() + " " + employee.getLastName() +
+                        ",\n\nYour password has been reset.\n\nNew password: " + newPassword +
+                        "\n\nPlease log in and change your password."
+        );
+        
+        return newPassword;
+    }
+    
+    public Map<String, Object> getEmployeeStats() {
+        List<User> allUsers = userRepository.findAll();
+        
+        long totalEmployees = allUsers.stream()
+                .filter(user -> user.getRole() == Role.EMPLOYEE)
+                .count();
+                
+        long totalAdmins = allUsers.stream()
+                .filter(user -> user.getRole() == Role.ADMIN)
+                .count();
+                
+        long profileCompleted = allUsers.stream()
+                .filter(User::isProfileCompleted)
+                .count();
+                
+        long profilePending = allUsers.size() - profileCompleted;
+        
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("totalEmployees", totalEmployees);
+        stats.put("totalAdmins", totalAdmins);
+        stats.put("profileCompleted", profileCompleted);
+        stats.put("profilePending", profilePending);
+        stats.put("totalUsers", allUsers.size());
+        
+        return stats;
     }
     public void completeProfile(String email, CompleteProfileRequest request) {
         User user = userRepository.findByEmail(email)

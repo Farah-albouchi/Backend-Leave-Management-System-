@@ -10,12 +10,12 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CreateEmployeeRequest {
+public class UpdateEmployeeRequest {
     private String firstName;
     private String lastName;
     private String email;
     private String phone;
     private String address;
     private Long cin;
-    private Role role; // Default to EMPLOYEE in service if null
+    private Role role;
 }
