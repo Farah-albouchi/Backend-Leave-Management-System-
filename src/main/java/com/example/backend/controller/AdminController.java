@@ -1,5 +1,6 @@
 package com.example.backend.controller;
 
+import com.example.backend.dto.AdminLeaveRequestDto;
 import com.example.backend.dto.CreateEmployeeRequest;
 import com.example.backend.dto.LeaveRequestDto;
 import com.example.backend.model.LeaveRequest;
@@ -12,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -35,7 +37,8 @@ public class AdminController {
     }
 
     @GetMapping("/requests")
-    public ResponseEntity<List<LeaveRequestDto>> getAllRequests(
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<AdminLeaveRequestDto>> getAllRequests(
             @RequestParam(value = "status", required = false) String statusStr,
             @RequestParam(value = "employeeId", required = false) String employeeId
     ) {
@@ -51,8 +54,8 @@ public class AdminController {
 
         List<LeaveRequest> requests = leaveRequestService.getAllRequests(status, employeeId);
 
-        List<LeaveRequestDto> dtos = requests.stream()
-                .map(LeaveRequestDto::fromEntity)
+        List<AdminLeaveRequestDto> dtos = requests.stream()
+                .map(AdminLeaveRequestDto::fromEntity)
                 .toList();
 
         return ResponseEntity.ok(dtos);
@@ -61,22 +64,63 @@ public class AdminController {
 
 
     @PutMapping("/requests/{id}/approve")
-    public ResponseEntity<?> approveRequest(@PathVariable UUID id) {
-        leaveRequestService.updateStatus(id, LeaveStatus.ACCEPTED, null);
-        return ResponseEntity.ok().build();
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, String>> approveRequest(@PathVariable UUID id, @RequestBody(required = false) Map<String, String> body) {
+        String reason = body != null ? body.get("reason") : null;
+        leaveRequestService.updateStatus(id, LeaveStatus.ACCEPTED, reason);
+        
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Request approved successfully");
+        response.put("status", "ACCEPTED");
+        
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/requests/{id}/reject")
-    public ResponseEntity<?> rejectRequest(@PathVariable UUID id, @RequestBody Map<String, String> body) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, String>> rejectRequest(@PathVariable UUID id, @RequestBody Map<String, String> body) {
         String reason = body.get("reason");
+        if (reason == null || reason.trim().isEmpty()) {
+            Map<String, String> error = new HashMap<>();
+            error.put("error", "Reason is required for rejection");
+            return ResponseEntity.badRequest().body(error);
+        }
+        
         leaveRequestService.updateStatus(id, LeaveStatus.REJECTED, reason);
-        return ResponseEntity.ok().build();
+        
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Request rejected successfully");
+        response.put("status", "REJECTED");
+        response.put("reason", reason);
+        
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/requests/{id}")
-    public ResponseEntity<LeaveRequest> getRequestById(@PathVariable UUID id) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<AdminLeaveRequestDto> getRequestById(@PathVariable UUID id) {
         LeaveRequest request = leaveRequestService.getRequestById(id);
-        return ResponseEntity.ok(request);
+        AdminLeaveRequestDto dto = AdminLeaveRequestDto.fromEntity(request);
+        return ResponseEntity.ok(dto);
+    }
+    
+    @GetMapping("/requests/stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Long>> getRequestStats() {
+        List<LeaveRequest> allRequests = leaveRequestService.getAllRequests(null, null);
+        
+        long pending = allRequests.stream().filter(r -> r.getStatus() == LeaveStatus.PENDING).count();
+        long approved = allRequests.stream().filter(r -> r.getStatus() == LeaveStatus.ACCEPTED).count();
+        long rejected = allRequests.stream().filter(r -> r.getStatus() == LeaveStatus.REJECTED).count();
+        long total = allRequests.size();
+        
+        Map<String, Long> stats = new HashMap<>();
+        stats.put("pending", pending);
+        stats.put("approved", approved);
+        stats.put("rejected", rejected);
+        stats.put("total", total);
+        
+        return ResponseEntity.ok(stats);
     }
 
     @DeleteMapping("/user/{userId}")

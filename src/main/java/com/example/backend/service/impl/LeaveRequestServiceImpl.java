@@ -51,7 +51,7 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
                 .build();
 
         if (document != null && !document.isEmpty()) {
-            String filename = fileStorageService.storeFile(document);
+            String filename = fileStorageService.saveFile(document);
             request.setDocumentPath(filename);
         }
 
@@ -121,7 +121,7 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
         request.setStatus(status);
         
         if (reason != null && !reason.trim().isEmpty()) {
-            request.setAdminComment(reason);
+            request.setAdminRemark(reason);
         }
         
         leaveRequestRepository.save(request);
