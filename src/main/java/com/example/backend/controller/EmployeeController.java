@@ -1,14 +1,17 @@
 package com.example.backend.controller;
 
 import com.example.backend.dto.CompleteProfileRequest;
-
+import com.example.backend.dto.LeaveBalanceSummaryDto;
 import com.example.backend.service.UserService;
+import com.example.backend.service.impl.LeaveBalanceServiceImp;
 import com.example.backend.service.impl.UserServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+
+import java.security.Principal;
 
 @RestController
 @RequestMapping("/api/employee")
@@ -17,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 public class EmployeeController {
 
     private final UserServiceImpl userService;
+    private final LeaveBalanceServiceImp leaveBalanceService;
 
     @PostMapping("/complete-profile")
     public ResponseEntity<?> completeProfile(
@@ -25,5 +29,12 @@ public class EmployeeController {
     ) {
         userService.completeProfile(userDetails.getUsername(), request);
         return ResponseEntity.ok("Profile completed successfully.");
+    }
+    
+    @GetMapping("/leave-balance")
+    public ResponseEntity<LeaveBalanceSummaryDto> getMyLeaveBalance(Principal principal) {
+        String email = principal.getName();
+        LeaveBalanceSummaryDto balanceSummary = leaveBalanceService.getEmployeeBalanceSummary(email);
+        return ResponseEntity.ok(balanceSummary);
     }
 }

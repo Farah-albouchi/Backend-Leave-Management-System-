@@ -17,6 +17,10 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, UUID
     List<LeaveRequest> findByStatus(LeaveStatus status);
     List<LeaveRequest> findByStatusAndEmployeeId(LeaveStatus status, String employeeId);
     List<LeaveRequest> findByEmployeeId(String employeeId);
+    
+    @Query("SELECT r FROM LeaveRequest r WHERE r.employee = ?1 AND r.status = ?2 AND YEAR(r.startDate) = ?3")
+    List<LeaveRequest> findByEmployeeAndStatusAndYear(User employee, LeaveStatus status, int year);
+    
     @Query("SELECT TO_CHAR(r.startDate, 'Month YYYY'), COUNT(r) " +
             "FROM LeaveRequest r " +
             "GROUP BY TO_CHAR(r.startDate, 'Month YYYY') " +
