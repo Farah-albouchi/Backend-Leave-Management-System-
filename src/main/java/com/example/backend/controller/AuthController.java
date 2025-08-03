@@ -3,12 +3,9 @@ package com.example.backend.controller;
 import com.example.backend.dto.AuthResponse;
 import com.example.backend.dto.LoginRequest;
 import com.example.backend.dto.RegisterRequest;
-import com.example.backend.dto.UserDto;
 import com.example.backend.model.User;
-import com.example.backend.repository.UserRepository;
 import com.example.backend.security.JwtService;
-import com.example.backend.security.UserDetailsServiceImpl;
-import com.example.backend.service.UserService;
+import com.example.backend.service.impl.UserServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -16,21 +13,24 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
+import java.util.HashMap;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/auth")
 @CrossOrigin(origins = {"http://localhost:4200", "http://127.0.0.1:4200"}, allowCredentials = "true")
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final AuthenticationManager authenticationManager;
-    private final UserDetailsServiceImpl userDetailsService;
+    private final UserServiceImpl userService;
     private final JwtService jwtService;
-    private final UserRepository userRepository;
-    private final UserService userService;
+    private final AuthenticationManager authenticationManager;
 
     @PostMapping("/register")
-    public ResponseEntity<UserDto> register(@RequestBody RegisterRequest request) {
-        return ResponseEntity.ok(userService.registerUser(request));
+    public ResponseEntity<User> register(@RequestBody RegisterRequest request) {
+        User user = userService.register(request);
+        return ResponseEntity.ok(user);
     }
 
     @PostMapping("/login")
@@ -39,10 +39,41 @@ public class AuthController {
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
         );
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(request.getEmail());
-        String token = jwtService.generateToken(userDetails);
-        User user = userRepository.findByEmail(request.getEmail()).get();
-        System.out.println("Attempting login for: " + request.getEmail());
-        return ResponseEntity.ok(new AuthResponse(token, user.getRole().name() , user.isProfileCompleted()));
+        UserDetails user = userService.loadUserByUsername(request.getEmail());
+        String token = jwtService.generateToken(user);
+
+        User userEntity = userService.findByEmail(request.getEmail());
+
+        AuthResponse response = AuthResponse.builder()
+                .token(token)
+                .role(userEntity.getRole().name())
+                .profileCompleted(userEntity.isProfileCompleted())
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(Principal principal) {
+        // For stateless JWT, we don't need to do anything server-side
+        // The client will remove the token from localStorage
+        
+        // Optionally, you could implement token blacklisting here
+        // if you want to invalidate tokens server-side
+        
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Logged out successfully");
+        
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<User> getCurrentUser(Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(401).build();
+        }
+        
+        User user = userService.findByEmail(principal.getName());
+        return ResponseEntity.ok(user);
     }
 }

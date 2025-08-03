@@ -17,6 +17,8 @@ public class Notification {
 
     private String message;
 
+    private String type; // success, info, warning, error
+
     private boolean read = false;
 
     private LocalDateTime createdAt;
@@ -28,5 +30,8 @@ public class Notification {
     @PrePersist
     public void onCreate() {
         createdAt = LocalDateTime.now();
+        if (type == null) {
+            type = "info"; // Default type
+        }
     }
 }
