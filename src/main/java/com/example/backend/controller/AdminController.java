@@ -4,14 +4,15 @@ import com.example.backend.dto.*;
 import com.example.backend.model.LeaveRequest;
 import com.example.backend.model.LeaveStatus;
 import com.example.backend.model.User;
+import com.example.backend.repository.LeaveRequestRepository;
 import com.example.backend.service.LeaveRequestService;
-import com.example.backend.service.UserService;
 import com.example.backend.service.impl.UserServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,7 @@ public class AdminController {
 
     private final UserServiceImpl userService;
     private final LeaveRequestService leaveRequestService;
+    private final LeaveRequestRepository leaveRequestRepository;
 
 
 
@@ -111,6 +113,22 @@ public class AdminController {
     public ResponseEntity<Map<String, Object>> getEmployeeStats() {
         Map<String, Object> stats = userService.getEmployeeStats();
         return ResponseEntity.ok(stats);
+    }
+    
+    @GetMapping("/employees/on-leave")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<EmployeeDto>> getEmployeesOnLeave(
+            @RequestParam(value = "date", required = false) String dateStr
+    ) {
+        LocalDate date = dateStr != null ? LocalDate.parse(dateStr) : LocalDate.now();
+        
+        List<LeaveRequest> leaveRequests = leaveRequestRepository.findEmployeesOnLeaveForDate(date);
+        List<EmployeeDto> employeesOnLeave = leaveRequests.stream()
+                .map(request -> EmployeeDto.fromEntity(request.getEmployee()))
+                .distinct()
+                .toList();
+        
+        return ResponseEntity.ok(employeesOnLeave);
     }
 
     // ========== LEGACY ENDPOINT (for backward compatibility) ==========

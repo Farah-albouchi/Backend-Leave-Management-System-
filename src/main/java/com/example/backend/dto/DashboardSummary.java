@@ -14,4 +14,7 @@ public class DashboardSummary {
     private long pendingRequests;
     private long approvedRequests;
     private long rejectedRequests;
+    private long totalEmployees;
+    private long employeesOnLeaveToday;
+    private long overLimitEmployees;
 }

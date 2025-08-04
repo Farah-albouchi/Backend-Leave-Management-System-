@@ -43,6 +43,11 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserDto registerUser(RegisterRequest request) {
+        // Check if user already exists
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new RuntimeException("User with email " + request.getEmail() + " already exists");
+        }
+        
         User user = new User();
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
@@ -61,9 +66,17 @@ public class UserServiceImpl implements UserService {
 
     }
     public User createEmployee(CreateEmployeeRequest request) {
+        // Check if user already exists
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new RuntimeException("User with email " + request.getEmail() + " already exists");
+        }
+        
         // Generate random password
         String rawPassword = UUID.randomUUID().toString().substring(0, 8);
         String encodedPassword = passwordEncoder.encode(rawPassword);
+        
+        // Log the generated password for debugging
+        System.out.println("🔑 Generated password for " + request.getEmail() + ": " + rawPassword);
 
         // Build user with provided or default role
         User employee = User.builder()
@@ -100,15 +113,56 @@ public class UserServiceImpl implements UserService {
 
 
         // Send welcome email with temporary password
-        emailService.sendEmail(
-                request.getEmail(),
-                "Your account has been created",
-                "Hello " + request.getFirstName() + " " + request.getLastName() +
-                        ",\n\nYour temporary password is: " + rawPassword +
-                        "\n\nPlease log in and complete your profile."
-        );
+        try {
+            emailService.sendEmail(
+                    request.getEmail(),
+                    "Your account has been created",
+                    "Hello " + request.getFirstName() + " " + request.getLastName() +
+                            ",\n\nYour temporary password is: " + rawPassword +
+                            "\n\nPlease log in and complete your profile."
+            );
+            System.out.println("✅ Email sent successfully to: " + request.getEmail());
+        } catch (Exception e) {
+            System.err.println("❌ Failed to send email to: " + request.getEmail() + ". Error: " + e.getMessage());
+            // Continue without failing the user creation
+        }
         
         return savedEmployee;
+    }
+
+    // ========== PASSWORD RESET METHOD ==========
+    
+    @Transactional
+    public String resetEmployeePassword(String userId) {
+        User employee = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Employee not found"));
+                
+        // Generate new random password
+        String newRawPassword = UUID.randomUUID().toString().substring(0, 8);
+        String newEncodedPassword = passwordEncoder.encode(newRawPassword);
+        
+        // Update password
+        employee.setPassword(newEncodedPassword);
+        userRepository.save(employee);
+        
+        // Log the new password for debugging
+        System.out.println("🔑 Reset password for " + employee.getEmail() + ": " + newRawPassword);
+        
+        // Send email with new password
+        try {
+            emailService.sendEmail(
+                    employee.getEmail(),
+                    "Password Reset",
+                    "Hello " + employee.getFirstName() + " " + employee.getLastName() +
+                            ",\n\nYour new temporary password is: " + newRawPassword +
+                            "\n\nPlease log in and complete your profile."
+            );
+            System.out.println("✅ Password reset email sent to: " + employee.getEmail());
+        } catch (Exception e) {
+            System.err.println("❌ Failed to send password reset email to: " + employee.getEmail() + ". Error: " + e.getMessage());
+        }
+        
+        return newRawPassword;
     }
 
     // ========== NEW EMPLOYEE MANAGEMENT METHODS ==========

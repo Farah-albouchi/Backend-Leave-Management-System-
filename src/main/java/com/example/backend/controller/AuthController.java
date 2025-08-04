@@ -40,23 +40,35 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-        );
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+            );
 
-        UserDetails user = userDetailsService.loadUserByUsername(request.getEmail());
-        String token = jwtService.generateToken(user);
+            UserDetails user = userDetailsService.loadUserByUsername(request.getEmail());
+            String token = jwtService.generateToken(user);
 
-        User userEntity = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            User userEntity = userRepository.findByEmail(request.getEmail())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
 
-        AuthResponse response = AuthResponse.builder()
-                .token(token)
-                .role(userEntity.getRole().name())
-                .profileCompleted(userEntity.isProfileCompleted())
-                .build();
+            AuthResponse response = AuthResponse.builder()
+                    .token(token)
+                    .role(userEntity.getRole().name())
+                    .profileCompleted(userEntity.isProfileCompleted())
+                    .build();
 
-        return ResponseEntity.ok(response);
+            return ResponseEntity.ok(response);
+        } catch (org.springframework.security.authentication.BadCredentialsException e) {
+            System.err.println("❌ Bad credentials for email: " + request.getEmail());
+            return ResponseEntity.status(401).build();
+        } catch (org.springframework.security.core.userdetails.UsernameNotFoundException e) {
+            System.err.println("❌ User not found: " + request.getEmail());
+            return ResponseEntity.status(401).build();
+        } catch (Exception e) {
+            System.err.println("❌ Login error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).build();
+        }
     }
 
     @PostMapping("/logout")

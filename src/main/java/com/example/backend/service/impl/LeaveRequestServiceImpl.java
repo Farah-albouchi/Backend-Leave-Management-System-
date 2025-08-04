@@ -124,7 +124,6 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
     @Override
     public void updateStatus(UUID requestId, LeaveStatus status, String reason) {
         LeaveRequest request = getRequestById(requestId);
-        LeaveStatus oldStatus = request.getStatus();
         request.setStatus(status);
         
         if (reason != null && !reason.trim().isEmpty()) {
@@ -161,12 +160,26 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
         long pending = leaveRequestRepository.countByStatus(LeaveStatus.PENDING);
         long approved = leaveRequestRepository.countByStatus(LeaveStatus.ACCEPTED);
         long rejected = leaveRequestRepository.countByStatus(LeaveStatus.REJECTED);
+        
+        // Calculate total employees
+        long totalEmployees = userRepository.count();
+        
+        // Calculate employees on leave today
+        LocalDate today = LocalDate.now();
+        long employeesOnLeaveToday = leaveRequestRepository.countEmployeesOnLeaveForDate(today);
+        
+        // Calculate over-limit employees (employees with pending requests above normal)
+        long overLimitEmployees = leaveRequestRepository.countByStatus(LeaveStatus.PENDING) > 5 ? 
+            leaveRequestRepository.countByStatus(LeaveStatus.PENDING) - 5 : 0;
 
         return DashboardSummary.builder()
                 .totalRequests(total)
                 .pendingRequests(pending)
                 .approvedRequests(approved)
                 .rejectedRequests(rejected)
+                .totalEmployees(totalEmployees)
+                .employeesOnLeaveToday(employeesOnLeaveToday)
+                .overLimitEmployees(overLimitEmployees)
                 .build();
     }
 
