@@ -208,28 +208,6 @@ public class UserServiceImpl implements UserService {
         return userRepository.save(employee);
     }
     
-    public String resetEmployeePassword(String id) {
-        User employee = getEmployeeById(id);
-        
-        // Generate new random password
-        String newPassword = UUID.randomUUID().toString().substring(0, 8);
-        String encodedPassword = passwordEncoder.encode(newPassword);
-        
-        employee.setPassword(encodedPassword);
-        userRepository.save(employee);
-        
-        // Send email with new password
-        emailService.sendEmail(
-                employee.getEmail(),
-                "Password Reset",
-                "Hello " + employee.getFirstName() + " " + employee.getLastName() +
-                        ",\n\nYour password has been reset.\n\nNew password: " + newPassword +
-                        "\n\nPlease log in and change your password."
-        );
-        
-        return newPassword;
-    }
-    
     public Map<String, Object> getEmployeeStats() {
         List<User> allUsers = userRepository.findAll();
         
