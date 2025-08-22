@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -193,5 +194,97 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
     @Override
     public LeaveRequest saveLeaveRequest(LeaveRequest leaveRequest) {
         return leaveRequestRepository.save(leaveRequest);
+    }
+
+    @Override
+    public Map<String, Long> getStatusDistribution() {
+        Map<String, Long> distribution = new HashMap<>();
+        distribution.put("APPROVED", leaveRequestRepository.countByStatus(LeaveStatus.ACCEPTED));
+        distribution.put("PENDING", leaveRequestRepository.countByStatus(LeaveStatus.PENDING));
+        distribution.put("REJECTED", leaveRequestRepository.countByStatus(LeaveStatus.REJECTED));
+        return distribution;
+    }
+
+    @Override
+    public List<Map<String, Object>> getTopEmployeesByDays(int limit) {
+        // Simplified implementation
+        List<LeaveRequest> approvedRequests = leaveRequestRepository.findByStatus(LeaveStatus.ACCEPTED);
+        Map<String, Integer> employeeDays = new HashMap<>();
+        Map<String, String> employeeNames = new HashMap<>();
+        Map<String, Integer> employeeRequestCounts = new HashMap<>();
+        
+        for (LeaveRequest request : approvedRequests) {
+            String employeeId = request.getEmployee().getId();
+            String employeeName = request.getEmployee().getFirstName() + " " + request.getEmployee().getLastName();
+            int days = calculateWorkingDays(request.getStartDate(), request.getEndDate());
+            
+            employeeDays.put(employeeId, employeeDays.getOrDefault(employeeId, 0) + days);
+            employeeNames.put(employeeId, employeeName);
+            employeeRequestCounts.put(employeeId, employeeRequestCounts.getOrDefault(employeeId, 0) + 1);
+        }
+        
+        return employeeDays.entrySet().stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .limit(limit)
+                .map(entry -> {
+                    Map<String, Object> employee = new HashMap<>();
+                    employee.put("employeeId", entry.getKey());
+                    employee.put("employeeName", employeeNames.get(entry.getKey()));
+                    employee.put("totalDays", entry.getValue());
+                    employee.put("requests", employeeRequestCounts.get(entry.getKey()));
+                    return employee;
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Map<String, Object>> getRecentRequests(int limit) {
+        List<LeaveRequest> requests = leaveRequestRepository.findAll().stream()
+                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+                .limit(limit)
+                .collect(Collectors.toList());
+                
+        return requests.stream()
+                .map(request -> {
+                    Map<String, Object> requestData = new HashMap<>();
+                    requestData.put("id", request.getId());
+                    requestData.put("employeeName", request.getEmployee().getFirstName() + " " + request.getEmployee().getLastName());
+                    requestData.put("leaveType", request.getType().toString());
+                    requestData.put("startDate", request.getStartDate());
+                    requestData.put("endDate", request.getEndDate());
+                    requestData.put("duration", calculateWorkingDays(request.getStartDate(), request.getEndDate()));
+                    requestData.put("status", request.getStatus().toString());
+                    requestData.put("submittedAt", request.getCreatedAt());
+                    requestData.put("reason", request.getReason());
+                    return requestData;
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Map<String, Object>> getEmployeeBalances() {
+        List<User> employees = userRepository.findByRole(Role.EMPLOYEE);
+        return employees.stream()
+                .map(employee -> {
+                    Map<String, Object> balanceData = new HashMap<>();
+                    balanceData.put("employeeId", employee.getId());
+                    balanceData.put("employeeName", employee.getFirstName() + " " + employee.getLastName());
+                    
+                    // Calculate balance - simplified logic
+                    int totalAllowance = 25; // Default allowance
+                    long usedDays = leaveRequestRepository.countByEmployeeAndStatus(employee, LeaveStatus.ACCEPTED);
+                    int remaining = totalAllowance - (int) usedDays;
+                    
+                    balanceData.put("totalAllowance", totalAllowance);
+                    balanceData.put("used", usedDays);
+                    balanceData.put("remaining", remaining);
+                    
+                    return balanceData;
+                })
+                .collect(Collectors.toList());
+    }
+
+    private int calculateWorkingDays(LocalDate startDate, LocalDate endDate) {
+        return (int) ChronoUnit.DAYS.between(startDate, endDate) + 1;
     }
 }

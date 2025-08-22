@@ -26,6 +26,12 @@ public interface LeaveRequestService {
     DashboardSummary getDashboardSummary();
     Map<String, Long> getLeaveTypeDistribution();
     
+    // Enhanced statistics methods
+    Map<String, Long> getStatusDistribution();
+    List<Map<String, Object>> getTopEmployeesByDays(int limit);
+    List<Map<String, Object>> getRecentRequests(int limit);
+    List<Map<String, Object>> getEmployeeBalances();
+    
     // Admin methods
     LeaveRequest saveLeaveRequest(LeaveRequest leaveRequest);
 

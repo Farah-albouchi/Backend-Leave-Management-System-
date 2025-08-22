@@ -30,4 +30,5 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, UUID
     long countByStatus(LeaveStatus status);
     @Transactional
     void deleteAllByEmployee(User user);
+    long countByEmployeeAndStatus(User employee, LeaveStatus accepted);
 }
