@@ -1,7 +1,6 @@
 package com.example.backend.service.impl;
 
 
-import ch.qos.logback.classic.encoder.JsonEncoder;
 import com.example.backend.dto.*;
 import java.util.HashMap;
 import java.util.List;
@@ -309,6 +308,43 @@ public class UserServiceImpl implements UserService {
         // Update password
         admin.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(admin);
+    }
+
+    // ========== EMPLOYEE PROFILE METHODS ==========
+    
+    @Override
+    public ProfileDto getUserProfile(String email) {
+        User user = getUserByEmail(email);
+        return ProfileDto.fromEntity(user);
+    }
+    
+    @Override
+    @Transactional
+    public ProfileDto updateUserProfile(String email, UpdateProfileRequest request) {
+        User user = getUserByEmail(email);
+        
+        // Check if email is being changed and if it's already taken by another user
+        if (!user.getEmail().equals(request.getEmail())) {
+            if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+                throw new RuntimeException("Email " + request.getEmail() + " is already taken");
+            }
+        }
+        
+        // Update fields
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+        user.setEmail(request.getEmail());
+        user.setPhone(request.getPhone());
+        user.setAddress(request.getAddress());
+        user.setCin(request.getCin());
+        
+        // Mark profile as completed if not already
+        if (!user.isProfileCompleted()) {
+            user.setProfileCompleted(true);
+        }
+        
+        User savedUser = userRepository.save(user);
+        return ProfileDto.fromEntity(savedUser);
     }
 
 }
