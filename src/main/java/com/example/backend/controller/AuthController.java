@@ -25,6 +25,14 @@ import java.util.Map;
 @CrossOrigin(origins = {"http://localhost:4200", "http://127.0.0.1:4200"}, allowCredentials = "true")
 @RequiredArgsConstructor
 public class AuthController {
+    
+    @GetMapping("/health")
+    public ResponseEntity<Map<String, String>> health() {
+        Map<String, String> response = new HashMap<>();
+        response.put("status", "UP");
+        response.put("timestamp", java.time.LocalDateTime.now().toString());
+        return ResponseEntity.ok(response);
+    }
 
     private final UserServiceImpl userService;
     private final UserDetailsServiceImpl userDetailsService;
@@ -40,35 +48,23 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
-        try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-            );
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+        );
 
-            UserDetails user = userDetailsService.loadUserByUsername(request.getEmail());
-            String token = jwtService.generateToken(user);
+        UserDetails user = userDetailsService.loadUserByUsername(request.getEmail());
+        String token = jwtService.generateToken(user);
 
-            User userEntity = userRepository.findByEmail(request.getEmail())
-                    .orElseThrow(() -> new RuntimeException("User not found"));
+        User userEntity = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-            AuthResponse response = AuthResponse.builder()
-                    .token(token)
-                    .role(userEntity.getRole().name())
-                    .profileCompleted(userEntity.isProfileCompleted())
-                    .build();
+        AuthResponse response = AuthResponse.builder()
+                .token(token)
+                .role(userEntity.getRole().name())
+                .profileCompleted(userEntity.isProfileCompleted())
+                .build();
 
-            return ResponseEntity.ok(response);
-        } catch (org.springframework.security.authentication.BadCredentialsException e) {
-            System.err.println("❌ Bad credentials for email: " + request.getEmail());
-            return ResponseEntity.status(401).build();
-        } catch (org.springframework.security.core.userdetails.UsernameNotFoundException e) {
-            System.err.println("❌ User not found: " + request.getEmail());
-            return ResponseEntity.status(401).build();
-        } catch (Exception e) {
-            System.err.println("❌ Login error: " + e.getMessage());
-            e.printStackTrace();
-            return ResponseEntity.status(500).build();
-        }
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/logout")

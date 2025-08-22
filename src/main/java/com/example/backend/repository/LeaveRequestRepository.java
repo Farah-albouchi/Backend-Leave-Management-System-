@@ -4,12 +4,11 @@ import com.example.backend.model.LeaveRequest;
 import com.example.backend.model.LeaveStatus;
 import com.example.backend.model.User;
 import jakarta.transaction.Transactional;
+import org.hibernate.tool.schema.spi.SchemaTruncator;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -29,19 +28,6 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, UUID
     List<Object[]> countLeaveRequestsByMonth();
 
     long countByStatus(LeaveStatus status);
-    
-    @Query("SELECT COUNT(DISTINCT r.employee) FROM LeaveRequest r " +
-           "WHERE r.status = 'ACCEPTED' " +
-           "AND :date BETWEEN r.startDate AND r.endDate")
-    long countEmployeesOnLeaveForDate(@Param("date") LocalDate date);
-    
-    @Query("SELECT r FROM LeaveRequest r " +
-           "WHERE r.status = 'ACCEPTED' " +
-           "AND :date BETWEEN r.startDate AND r.endDate")
-    List<LeaveRequest> findEmployeesOnLeaveForDate(@Param("date") LocalDate date);
-    
-    List<LeaveRequest> findByEmployee(User employee);
-    
     @Transactional
     void deleteAllByEmployee(User user);
 }

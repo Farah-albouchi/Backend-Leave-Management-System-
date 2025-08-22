@@ -259,6 +259,56 @@ public class UserServiceImpl implements UserService {
         userRepository.delete(user);
     }
 
-
+    // ========== ADMIN PROFILE METHODS ==========
+    
+    @Override
+    public User getUserByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+    }
+    
+    @Override
+    public User updateAdminProfile(String email, UpdateAdminProfileRequest request) {
+        User admin = getUserByEmail(email);
+        
+        // Check if email is being changed and if it's already taken by another user
+        if (!admin.getEmail().equals(request.getEmail())) {
+            if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+                throw new RuntimeException("Email " + request.getEmail() + " is already taken");
+            }
+        }
+        
+        // Update fields
+        admin.setFirstName(request.getFirstName());
+        admin.setLastName(request.getLastName());
+        admin.setEmail(request.getEmail());
+        admin.setPhone(request.getPhone());
+        admin.setAddress(request.getAddress());
+        
+        if (request.getCin() != null && !request.getCin().trim().isEmpty()) {
+            admin.setCin(Long.parseLong(request.getCin()));
+        }
+        
+        // Mark profile as completed if not already
+        if (!admin.isProfileCompleted()) {
+            admin.setProfileCompleted(true);
+        }
+        
+        return userRepository.save(admin);
+    }
+    
+    @Override
+    public void changeAdminPassword(String email, ChangePasswordRequest request) {
+        User admin = getUserByEmail(email);
+        
+        // Verify current password
+        if (!passwordEncoder.matches(request.getCurrentPassword(), admin.getPassword())) {
+            throw new RuntimeException("Current password is incorrect");
+        }
+        
+        // Update password
+        admin.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(admin);
+    }
 
 }

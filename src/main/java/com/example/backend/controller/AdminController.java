@@ -10,6 +10,8 @@ import com.example.backend.service.impl.UserServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -31,6 +33,22 @@ public class AdminController {
 
 
     // ========== EMPLOYEE MANAGEMENT ENDPOINTS ==========
+    
+    @GetMapping("/debug/auth")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> debugAuth() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Map<String, Object> debug = new HashMap<>();
+        debug.put("username", authentication.getName());
+        debug.put("authorities", authentication.getAuthorities().toString());
+        debug.put("isAuthenticated", authentication.isAuthenticated());
+        debug.put("principal", authentication.getPrincipal().getClass().getSimpleName());
+        
+        System.out.println("🔍 Debug Auth - User: " + authentication.getName());
+        System.out.println("🔍 Debug Auth - Authorities: " + authentication.getAuthorities());
+        
+        return ResponseEntity.ok(debug);
+    }
     
     @GetMapping("/employees")
     @PreAuthorize("hasRole('ADMIN')")
@@ -89,11 +107,74 @@ public class AdminController {
     @GetMapping("/employees/{id}/leave-history")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<AdminLeaveRequestDto>> getEmployeeLeaveHistory(@PathVariable String id) {
-        List<LeaveRequest> requests = leaveRequestService.getEmployeeLeaveHistory(id);
-        List<AdminLeaveRequestDto> dtos = requests.stream()
-                .map(AdminLeaveRequestDto::fromEntity)
-                .toList();
-        return ResponseEntity.ok(dtos);
+        // Debug logging
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        System.out.println("🔍 getEmployeeLeaveHistory - User: " + authentication.getName());
+        System.out.println("🔍 getEmployeeLeaveHistory - Authorities: " + authentication.getAuthorities());
+        System.out.println("🔍 getEmployeeLeaveHistory - Employee ID: " + id);
+        
+        try {
+            List<LeaveRequest> requests = leaveRequestService.getEmployeeLeaveHistory(id);
+            List<AdminLeaveRequestDto> dtos = requests.stream()
+                    .map(AdminLeaveRequestDto::fromEntity)
+                    .toList();
+            
+            System.out.println("✅ getEmployeeLeaveHistory - Found " + dtos.size() + " requests");
+            return ResponseEntity.ok(dtos);
+        } catch (Exception e) {
+            System.err.println("❌ getEmployeeLeaveHistory - Error: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    @PostMapping("/employees/leave-request")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> createLeaveRequestForEmployee(@RequestBody Map<String, Object> request) {
+        try {
+            String employeeId = (String) request.get("employeeId");
+            String type = (String) request.get("type");
+            String startDateStr = (String) request.get("startDate");
+            String endDateStr = (String) request.get("endDate");
+            Boolean halfDay = (Boolean) request.get("halfDay");
+            String reason = (String) request.get("reason");
+            Boolean autoApprove = (Boolean) request.get("autoApprove");
+            
+            if (employeeId == null || type == null || startDateStr == null || endDateStr == null || reason == null) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("error", "Missing required fields");
+                return ResponseEntity.badRequest().body(errorResponse);
+            }
+            
+            // Get the employee
+            User employee = userService.getEmployeeById(employeeId);
+            
+            // Create the leave request
+            LeaveRequest leaveRequest = LeaveRequest.builder()
+                    .employee(employee)
+                    .type(type)
+                    .startDate(LocalDate.parse(startDateStr))
+                    .endDate(LocalDate.parse(endDateStr))
+                    .halfDay(halfDay != null ? halfDay : false)
+                    .reason(reason)
+                    .status(autoApprove != null && autoApprove ? LeaveStatus.ACCEPTED : LeaveStatus.PENDING)
+                    .submittedAt(LocalDate.now())
+                    .adminRemark(autoApprove != null && autoApprove ? "Auto-approved by admin" : null)
+                    .build();
+            
+            LeaveRequest savedRequest = leaveRequestService.saveLeaveRequest(leaveRequest);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Leave request created successfully");
+            response.put("requestId", savedRequest.getId().toString());
+            response.put("status", savedRequest.getStatus().toString());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Failed to create leave request: " + e.getMessage());
+            return ResponseEntity.status(500).body(errorResponse);
+        }
     }
 
     @PostMapping("/employees/{id}/reset-password")
@@ -115,21 +196,22 @@ public class AdminController {
         return ResponseEntity.ok(stats);
     }
     
-    @GetMapping("/employees/on-leave")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<EmployeeDto>> getEmployeesOnLeave(
-            @RequestParam(value = "date", required = false) String dateStr
-    ) {
-        LocalDate date = dateStr != null ? LocalDate.parse(dateStr) : LocalDate.now();
-        
-        List<LeaveRequest> leaveRequests = leaveRequestRepository.findEmployeesOnLeaveForDate(date);
-        List<EmployeeDto> employeesOnLeave = leaveRequests.stream()
-                .map(request -> EmployeeDto.fromEntity(request.getEmployee()))
-                .distinct()
-                .toList();
-        
-        return ResponseEntity.ok(employeesOnLeave);
-    }
+    // TODO: Implement findEmployeesOnLeaveForDate in repository
+    // @GetMapping("/employees/on-leave")
+    // @PreAuthorize("hasRole('ADMIN')")
+    // public ResponseEntity<List<EmployeeDto>> getEmployeesOnLeave(
+    //         @RequestParam(value = "date", required = false) String dateStr
+    // ) {
+    //     LocalDate date = dateStr != null ? LocalDate.parse(dateStr) : LocalDate.now();
+    //     
+    //     List<LeaveRequest> leaveRequests = leaveRequestRepository.findEmployeesOnLeaveForDate(date);
+    //     List<EmployeeDto> employeesOnLeave = leaveRequests.stream()
+    //             .map(request -> EmployeeDto.fromEntity(request.getEmployee()))
+    //             .distinct()
+    //             .toList();
+    //     
+    //     return ResponseEntity.ok(employeesOnLeave);
+    // }
 
     // ========== LEGACY ENDPOINT (for backward compatibility) ==========
     
@@ -234,5 +316,46 @@ public class AdminController {
         return ResponseEntity.ok("User deleted successfully");
     }
 
+    // ========== ADMIN PROFILE ENDPOINTS ==========
+    
+    @GetMapping("/profile")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<AdminProfileDto> getAdminProfile() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+        
+        User admin = userService.getUserByEmail(email);
+        AdminProfileDto adminProfile = AdminProfileDto.fromEntity(admin);
+        return ResponseEntity.ok(adminProfile);
+    }
+
+    @PutMapping("/profile")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, String>> updateAdminProfile(@RequestBody UpdateAdminProfileRequest request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+        
+        User updatedAdmin = userService.updateAdminProfile(email, request);
+        
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Profile updated successfully");
+        response.put("adminId", updatedAdmin.getId());
+        
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/profile/change-password")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, String>> changeAdminPassword(@RequestBody ChangePasswordRequest request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+        
+        userService.changeAdminPassword(email, request);
+        
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Password changed successfully");
+        
+        return ResponseEntity.ok(response);
+    }
 
 }

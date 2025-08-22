@@ -25,6 +25,9 @@ public interface LeaveRequestService {
     List<MonthlyLeaveStat> getMonthlyStats();
     DashboardSummary getDashboardSummary();
     Map<String, Long> getLeaveTypeDistribution();
+    
+    // Admin methods
+    LeaveRequest saveLeaveRequest(LeaveRequest leaveRequest);
 
 
 
