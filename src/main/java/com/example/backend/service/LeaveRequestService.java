@@ -32,7 +32,7 @@ public interface LeaveRequestService {
     List<Map<String, Object>> getRecentRequests(int limit);
     List<Map<String, Object>> getEmployeeBalances();
     
-    // Admin methods
+    // Save leave request directly (for admin-created requests)
     LeaveRequest saveLeaveRequest(LeaveRequest leaveRequest);
 
 

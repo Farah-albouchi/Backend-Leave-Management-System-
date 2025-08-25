@@ -4,10 +4,14 @@ import com.example.backend.dto.*;
 import com.example.backend.model.LeaveRequest;
 import com.example.backend.model.LeaveStatus;
 import com.example.backend.model.User;
-import com.example.backend.repository.LeaveRequestRepository;
+
+import com.example.backend.service.FileStorageService;
 import com.example.backend.service.LeaveRequestService;
 import com.example.backend.service.impl.UserServiceImpl;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -28,7 +32,7 @@ public class AdminController {
 
     private final UserServiceImpl userService;
     private final LeaveRequestService leaveRequestService;
-    private final LeaveRequestRepository leaveRequestRepository;
+    private final FileStorageService fileStorageService;
 
 
 
@@ -356,6 +360,85 @@ public class AdminController {
         response.put("message", "Password changed successfully");
         
         return ResponseEntity.ok(response);
+    }
+
+    // ========== FILE DOWNLOAD ENDPOINTS ==========
+    
+    @GetMapping("/leave-requests/{requestId}/document")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Resource> downloadLeaveRequestDocument(@PathVariable UUID requestId) {
+        try {
+            // Get the leave request to verify it exists and get document path
+            LeaveRequest leaveRequest = leaveRequestService.getRequestById(requestId);
+            
+            if (leaveRequest.getDocumentPath() == null || leaveRequest.getDocumentPath().isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            // Extract filename from the document path (remove "uploads/" prefix if present)
+            String filename = leaveRequest.getDocumentPath();
+            if (filename.startsWith("uploads/")) {
+                filename = filename.substring("uploads/".length());
+            }
+            
+            // Load file as resource
+            Resource resource = fileStorageService.loadFileAsResource(filename);
+            
+            // Extract original filename for download
+            String originalFilename = filename;
+            if (filename.contains("_")) {
+                // Remove timestamp prefix (e.g., "1753208945953_document.pdf" -> "document.pdf")
+                int underscoreIndex = filename.indexOf('_');
+                if (underscoreIndex > 0 && underscoreIndex < filename.length() - 1) {
+                    originalFilename = filename.substring(underscoreIndex + 1);
+                }
+            }
+            
+            // Set appropriate headers for file download
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + originalFilename + "\"");
+            headers.add(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate");
+            headers.add(HttpHeaders.PRAGMA, "no-cache");
+            headers.add(HttpHeaders.EXPIRES, "0");
+            
+            // Determine content type
+            String contentType = "application/octet-stream";
+            String fileExtension = originalFilename.substring(originalFilename.lastIndexOf('.') + 1).toLowerCase();
+            switch (fileExtension) {
+                case "pdf":
+                    contentType = "application/pdf";
+                    break;
+                case "doc":
+                    contentType = "application/msword";
+                    break;
+                case "docx":
+                    contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                    break;
+                case "jpg":
+                case "jpeg":
+                    contentType = "image/jpeg";
+                    break;
+                case "png":
+                    contentType = "image/png";
+                    break;
+                case "txt":
+                    contentType = "text/plain";
+                    break;
+            }
+            
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .body(resource);
+                    
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("File not found")) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.internalServerError().build();
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
 }

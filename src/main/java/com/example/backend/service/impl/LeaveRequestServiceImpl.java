@@ -191,10 +191,6 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
                 ));
     }
     
-    @Override
-    public LeaveRequest saveLeaveRequest(LeaveRequest leaveRequest) {
-        return leaveRequestRepository.save(leaveRequest);
-    }
 
     @Override
     public Map<String, Long> getStatusDistribution() {
@@ -286,5 +282,10 @@ public class LeaveRequestServiceImpl implements LeaveRequestService {
 
     private int calculateWorkingDays(LocalDate startDate, LocalDate endDate) {
         return (int) ChronoUnit.DAYS.between(startDate, endDate) + 1;
+    }
+    
+    @Override
+    public LeaveRequest saveLeaveRequest(LeaveRequest leaveRequest) {
+        return leaveRequestRepository.save(leaveRequest);
     }
 }
