@@ -1,5 +1,6 @@
 package com.example.backend.service;
 
+import com.example.backend.dto.NotificationDto;
 import com.example.backend.model.Notification;
 import com.example.backend.model.User;
 
@@ -10,6 +11,7 @@ public interface NotificationService {
     void notify(User recipient, String message);
     void notify(User recipient, String message, String type);
     List<Notification> getUserNotifications(User user);
+    List<NotificationDto> getUserNotificationDtos(User user);
     void markAsRead(Notification notification);
     void markAsRead(UUID notificationId, User user);
     void markAllAsRead(User user);

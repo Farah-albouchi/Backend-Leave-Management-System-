@@ -1,5 +1,6 @@
 package com.example.backend.service.impl;
 
+import com.example.backend.dto.NotificationDto;
 import com.example.backend.model.Notification;
 import com.example.backend.model.User;
 import com.example.backend.repository.NotificationRepository;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class NotificationServiceImpl implements NotificationService {
@@ -36,6 +38,26 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public List<Notification> getUserNotifications(User user) {
         return notificationRepository.findByRecipientOrderByCreatedAtDesc(user);
+    }
+
+    @Override
+    public List<NotificationDto> getUserNotificationDtos(User user) {
+        List<Notification> notifications = notificationRepository.findByRecipientOrderByCreatedAtDesc(user);
+        return notifications.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    private NotificationDto convertToDto(Notification notification) {
+        return NotificationDto.builder()
+                .id(notification.getId())
+                .message(notification.getMessage())
+                .type(notification.getType())
+                .read(notification.isRead())
+                .createdAt(notification.getCreatedAt())
+                .recipientEmail(notification.getRecipient().getEmail())
+                .recipientName(notification.getRecipient().getFirstName() + " " + notification.getRecipient().getLastName())
+                .build();
     }
 
     @Override

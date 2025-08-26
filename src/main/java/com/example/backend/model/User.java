@@ -27,13 +27,25 @@ public class User {
     private Long cin ;
     private LocalDate createdAt;
     @Column(nullable = false)
+    @Builder.Default
     private boolean profileCompleted = false;
 
     @Enumerated(EnumType.STRING)
     private Role role;
 
+    // Maximum paid leave days for this employee (null means use system default)
+    private Integer paidLeaveCapDays;
+
     @PrePersist
     public void prePersist() {
         createdAt = LocalDate.now();
+    }
+
+    public Integer getPaidLeaveCapDays() {
+        return paidLeaveCapDays;
+    }
+
+    public void setPaidLeaveCapDays(Integer capDays) {
+        this.paidLeaveCapDays = capDays;
     }
 }

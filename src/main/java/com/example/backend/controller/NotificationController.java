@@ -1,6 +1,6 @@
 package com.example.backend.controller;
 
-import com.example.backend.model.Notification;
+import com.example.backend.dto.NotificationDto;
 import com.example.backend.model.User;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.service.NotificationService;
@@ -25,10 +25,10 @@ public class NotificationController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Notification>> getNotifications(Principal principal) {
+    public ResponseEntity<List<NotificationDto>> getNotifications(Principal principal) {
         User user = userRepository.findByEmail(principal.getName())
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        return ResponseEntity.ok(notificationService.getUserNotifications(user));
+        return ResponseEntity.ok(notificationService.getUserNotificationDtos(user));
     }
 
     @PutMapping("/{notificationId}/read")
